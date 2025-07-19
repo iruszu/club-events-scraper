@@ -1,4 +1,6 @@
 .kiro/*
+*.png
+*.html
 
 # Logs
 logs
