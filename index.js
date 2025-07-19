@@ -19,6 +19,11 @@ app.get("/scrape-events", async (req, res) => {
   const browser = await puppeteer.launch();
   const page = await browser.newPage();
 
+  const allClubs = await getClubs()
+  console.log('make sure all club doucments are being fetched', allClubs)
+
+  // for each club, look for an array of 'URLS', and for each URL, fetch the HTML and parse it
+
   // only using 'domcontentloaded' to be safe, attempt to reduce later when crawling in bulk
   const clubID = "temp-biz-tech";
   await page.goto("https://www.ubcbiztech.com/2024-2025/events-2024-2025", {
