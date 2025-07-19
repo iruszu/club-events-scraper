@@ -39,7 +39,7 @@ app.get("/scrape-events", async (req, res) => {
   const prompt = `
     Given the following HTML page content, extract a list of events. 
     Each event should include at least: title, date, location (if available), and link (if available). 
-   Return the result as a **valid JSON array** of this type (base on typescript type definition):
+    Return the result as an immediately **parsable JSON array** of this type (base on typescript type definition):
 [
     {
         title: string,
@@ -51,8 +51,7 @@ app.get("/scrape-events", async (req, res) => {
     ...
 ]
 
-
-    HTML:
+    Here is the HTML to parse:
     ${html}
   `;
 
@@ -63,7 +62,11 @@ app.get("/scrape-events", async (req, res) => {
       temperature: 0.2,
     });
 
-    const parsedEvents = completion.choices[0].message.content;
+    const rawResponse = completion.choices[0].message.content;
+    const parsedEvents = extractFromCodeBlock(rawResponse);
+
+    const data = JSON.parse(parsedEvents);
+    console.log("is data parsable?", data);
     res.send(parsedEvents);
   } catch (err) {
     console.error(err);
@@ -74,6 +77,20 @@ app.get("/scrape-events", async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });
+
+// Function to extract content from code blocks if present, otherwise return original
+function extractFromCodeBlock(text) {
+  // Look for triple backticks with optional language identifier
+  const codeBlockRegex = /```(?:json|javascript|js)?\s*\n?([\s\S]*?)\n?```/;
+  const match = text.match(codeBlockRegex);
+
+  if (match) {
+    return match[1].trim();
+  }
+
+  // If no code block found, return the original text
+  return text.trim();
+}
 
 // Function to clean HTML and keep only content
 function cleanHTML(html) {
