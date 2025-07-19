@@ -20,6 +20,7 @@ app.get("/scrape-events", async (req, res) => {
   const page = await browser.newPage();
 
   // only using 'domcontentloaded' to be safe, attempt to reduce later when crawling in bulk
+  const clubID = "temp-biz-tech";
   await page.goto("https://www.ubcbiztech.com/2024-2025/events-2024-2025", {
     waitUntil: "domcontentloaded",
   });
@@ -64,19 +65,23 @@ app.get("/scrape-events", async (req, res) => {
     });
 
     const rawResponse = completion.choices[0].message.content;
-    const parsedEvents = extractFromCodeBlock(rawResponse);
+    const eventsString = extractFromCodeBlock(rawResponse);
 
-    const data = JSON.parse(parsedEvents);
-    console.log("is data parsable?", data);
+    // we don't need to store the clubId here
+    const eventsJson = JSON.parse(eventsString).map((e) => {
+      // object deconstruction, and adding a field of the same name as the var
+      return { ...e, clubID };
+    });
+    console.log("is data parsable?", eventsJson);
 
     // Save events to Firestore using helper function
     try {
-      await addEventsToOpportunities(data);
+      await addEventsToOpportunities(clubID, eventsJson);
     } catch (firestoreError) {
-      console.error('Error saving to Firestore:', firestoreError);
+      console.error("Error saving to Firestore:", firestoreError);
     }
 
-    res.send(parsedEvents);
+    res.send(eventsJson);
   } catch (err) {
     console.error(err);
     res.status(500).send("Error parsing events with OpenAI");
