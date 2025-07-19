@@ -5,6 +5,7 @@ const fs = require("fs");
 const { JSDOM } = require("jsdom");
 
 const openai = require("./src/openai");
+const { addEventsToOpportunities } = require("./src/firebase");
 
 const app = express();
 const PORT = 3000;
@@ -67,6 +68,14 @@ app.get("/scrape-events", async (req, res) => {
 
     const data = JSON.parse(parsedEvents);
     console.log("is data parsable?", data);
+
+    // Save events to Firestore using helper function
+    try {
+      await addEventsToOpportunities(data);
+    } catch (firestoreError) {
+      console.error('Error saving to Firestore:', firestoreError);
+    }
+
     res.send(parsedEvents);
   } catch (err) {
     console.error(err);

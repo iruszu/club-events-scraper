@@ -1,6 +1,7 @@
 .kiro/*
 *.png
 *.html
+serviceAccountKey.json
 
 # Logs
 logs
