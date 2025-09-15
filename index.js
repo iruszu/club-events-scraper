@@ -393,14 +393,14 @@ If there is no clearly associated image, use this default club image: "${clubIma
 
 IMPORTANT: You must respond with ONLY a valid JSON array. Do not include any explanations, markdown formatting, or other text.
 IMPORTANT: Use the full, exact event title as it appears in the website content. Do not shorten or paraphrase event names.
-IMPORTANT: Use the full, exact event date as it appears in the website content associated with the event. If only a day and month are provided, assume the event is in the current year.
+IMPORTANT: Use the full, exact event date as it appears in the website content associated with the event. Only use dates that have complete year, month, and day information.
 IMPORTANT: If an event is represented as a hyperlink, use the anchor text as the event title if it appears to be an event name.
 
-Extract events that have dates and return them as a JSON array with this exact structure.
+Extract events that have COMPLETE dates (year, month, and day) and return them as a JSON array with this exact structure.
 [
   {
     "title": "Event Name",
-    "startDate": "2025-01-17",
+    "startDate": "2025-01-17", // Must include year, month, and day (YYYY-MM-DD format)
     "description": "Brief description",
     "eventURL": "${url}",
     "image": "Direct URL to the most relevant image from the list above associated with the event, or the default club image ${clubImageUrl} if none."
@@ -447,7 +447,21 @@ ${cleanedContent}
 		const eventsArray = Array.isArray(eventsJson) ? eventsJson : [eventsJson]
 
 		const processedEvents = eventsArray
-			.filter((e) => e && e.title && e.startDate) // Filter out invalid events
+			.filter((e) => {
+				// Filter out invalid events
+				if (!e || !e.title || !e.startDate) return false
+
+				// Ensure the date has a complete year (YYYY-MM-DD format)
+				const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+				if (!dateRegex.test(e.startDate)) {
+					console.log(
+						`Skipping event "${e.title}" - incomplete date: ${e.startDate}`
+					)
+					return false
+				}
+
+				return true
+			})
 			.map((e) => {
 				// Force use of default banner for certain clubs
 				const clubsForceDefaultBanner = [
@@ -472,21 +486,34 @@ ${cleanedContent}
 							: clubImageUrl
 				}
 
-				// --- Date Correction Logic ---
+				// --- Date Validation Logic ---
 				let startDate = e.startDate
+
+				// Only apply year corrections when we have very strong evidence
+				// and the original date seems clearly wrong (e.g., past year for future event)
 				const yearFromTitle = extractYearFromText(e.title)
 				const yearFromBanner = extractYearFromText(clubImageUrl)
-				const correctYear = yearFromTitle || yearFromBanner
-				if (correctYear) {
+
+				// Only correct if we have a year from the title (more reliable than banner)
+				if (yearFromTitle) {
 					const dateObj = new Date(startDate)
+					const currentYear = new Date().getFullYear()
+
+					// Only correct if the extracted date is clearly wrong:
+					// 1. Date is in the past (previous year) but title suggests current/future year
+					// 2. Date is more than 1 year in the future (likely wrong)
 					if (
 						!isNaN(dateObj.getTime()) &&
-						correctYear &&
-						dateObj.getFullYear() !== correctYear
+						dateObj.getFullYear() < currentYear - 1 &&
+						yearFromTitle >= currentYear
 					) {
-						// Replace year with correctYear if the extracted date is in the future
+						console.log(
+							`Correcting date year from ${dateObj.getFullYear()} to ${yearFromTitle} for event: ${
+								e.title
+							}`
+						)
 						const corrected = new Date(startDate)
-						corrected.setFullYear(correctYear)
+						corrected.setFullYear(yearFromTitle)
 						startDate = corrected.toISOString().slice(0, 10)
 					}
 				}
